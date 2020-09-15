@@ -53,10 +53,10 @@ impl<V: Send + Sync> Drop for SpscQueueProducer<V> {
 impl<V: Send + Sync> SpscQueueProducer<V> {
     pub fn enqueue(&mut self, value: V) -> () {
         let queue = unsafe { &mut *self.queue };
-        while queue.write_next >= queue.capacity {
-            // Wait for consumer to catch up and recycle buffer.
+        while queue.write_next >= queue.read_next + queue.capacity {
+            // Wait for consumer to catch up.
         };
-        unsafe { ptr::write(queue.buffer.offset(queue.write_next as isize), value) };
+        unsafe { ptr::write(queue.buffer.offset((queue.write_next % queue.capacity) as isize), value) };
         // Increment after setting buffer element.
         queue.write_next += 1;
     }
@@ -78,22 +78,14 @@ unsafe impl<V: Send + Sync> Sync for SpscQueueConsumer<V> {}
 impl<V: Send + Sync> SpscQueueConsumer<V> {
     pub fn dequeue(&mut self) -> Option<V> {
         let queue = unsafe { &mut *self.queue };
-        if queue.ended {
-            return None;
-        };
-        if queue.read_next == queue.capacity {
-            // We're at capacity now and producer is waiting for us to recycle the buffer; we've
-            // already read all the messages as the loop below and subsequent increment guarantee
-            // that `read_next` is always less than or equal to `write_next` (only exception being
-            // if `read_next` was set incorrectly when creating the queue).
-            // Order of these doesn't matter as producer only reads/writes `write_next`.
-            queue.read_next = 0;
-            queue.write_next = 0;
-        };
         while queue.read_next >= queue.write_next {
+            if queue.ended {
+                // We've caught up to the end.
+                return None;
+            };
             // Wait for producer to provide values.
         };
-        let value = unsafe { ptr::read(queue.buffer.offset(queue.read_next as isize)) };
+        let value = unsafe { ptr::read(queue.buffer.offset((queue.read_next % queue.capacity) as isize)) };
         queue.read_next += 1;
         Some(value)
     }

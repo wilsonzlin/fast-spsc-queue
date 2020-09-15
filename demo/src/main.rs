@@ -2,7 +2,7 @@ use std::thread;
 use spsc_queue::create_spsc_queue;
 
 fn main() {
-    let (mut producer, mut consumer) = create_spsc_queue::<String>(1);
+    let (mut producer, mut consumer) = create_spsc_queue::<String>(3);
 
     let child = thread::spawn(move || {
         while let Some(msg) = consumer.dequeue() {
@@ -10,7 +10,7 @@ fn main() {
         };
     });
 
-    for i in 0..25 {
+    for i in 0..60 {
         producer.enqueue(i.to_string());
     };
     producer.finish();
