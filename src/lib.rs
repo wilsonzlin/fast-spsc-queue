@@ -46,6 +46,10 @@ pub struct SpscQueueProducer<V: Send + Sync> {
     queue: *mut SpscQueue<V>,
 }
 
+unsafe impl<V: Send + Sync> Send for SpscQueueProducer<V> {}
+
+unsafe impl<V: Send + Sync> Sync for SpscQueueProducer<V> {}
+
 impl<V: Send + Sync> Drop for SpscQueueProducer<V> {
     fn drop(&mut self) {
         unsafe {
