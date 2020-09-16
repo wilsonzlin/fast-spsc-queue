@@ -80,18 +80,43 @@ unsafe impl<V: Send + Sync> Send for SpscQueueConsumer<V> {}
 unsafe impl<V: Send + Sync> Sync for SpscQueueConsumer<V> {}
 
 impl<V: Send + Sync> SpscQueueConsumer<V> {
-    pub fn dequeue(&mut self) -> Option<V> {
-        let queue = unsafe { &mut *self.queue };
-        while queue.read_next >= queue.write_next {
-            if queue.ended {
-                // We've caught up to the end.
-                return None;
-            };
-            // Wait for producer to provide values.
+    #[inline(always)]
+    fn queue(&self) -> &SpscQueue<V> {
+        unsafe { &*self.queue }
+    }
+
+    #[inline(always)]
+    fn queue_mut(&self) -> &mut SpscQueue<V> {
+        unsafe { &mut *self.queue }
+    }
+
+    #[inline(always)]
+    pub fn is_empty(&self) -> bool {
+        let queue = self.queue();
+        queue.read_next >= queue.write_next
+    }
+
+    pub fn dequeue_if_nonempty(&mut self) -> Option<V> {
+        if self.is_empty() {
+            return None;
         };
+        let queue = self.queue_mut();
         let value = unsafe { ptr::read(queue.buffer.offset((queue.read_next & queue.capacity_mask) as isize)) };
         queue.read_next += 1;
         Some(value)
+    }
+
+    pub fn dequeue(&mut self) -> Option<V> {
+        loop {
+            match self.dequeue_if_nonempty() {
+                // Wait for producer to provide values.
+                None => if self.queue().ended {
+                    // We've caught up to the end.
+                    return None;
+                },
+                Some(v) => return Some(v),
+            };
+        };
     }
 }
 
