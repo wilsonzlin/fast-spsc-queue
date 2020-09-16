@@ -71,6 +71,12 @@ impl<V: Send + Sync> SpscQueueProducer<V> {
     }
 }
 
+pub enum MaybeDequeued<V> {
+    Ended,
+    None,
+    Some(V),
+}
+
 pub struct SpscQueueConsumer<V: Send + Sync> {
     queue: *mut SpscQueue<V>,
 }
@@ -96,25 +102,27 @@ impl<V: Send + Sync> SpscQueueConsumer<V> {
         queue.read_next >= queue.write_next
     }
 
-    pub fn dequeue_if_nonempty(&mut self) -> Option<V> {
+    pub fn maybe_dequeue(&mut self) -> MaybeDequeued<V> {
         if self.is_empty() {
-            return None;
+            if self.queue().ended {
+                return MaybeDequeued::Ended;
+            };
+            return MaybeDequeued::None;
         };
         let queue = self.queue_mut();
         let value = unsafe { ptr::read(queue.buffer.offset((queue.read_next & queue.capacity_mask) as isize)) };
         queue.read_next += 1;
-        Some(value)
+        MaybeDequeued::Some(value)
     }
 
     pub fn dequeue(&mut self) -> Option<V> {
         loop {
-            match self.dequeue_if_nonempty() {
+            match self.maybe_dequeue() {
                 // Wait for producer to provide values.
-                None => if self.queue().ended {
-                    // We've caught up to the end.
-                    return None;
-                },
-                Some(v) => return Some(v),
+                MaybeDequeued::None => {}
+                // We've caught up to the end.
+                MaybeDequeued::Ended => return None,
+                MaybeDequeued::Some(v) => return Some(v),
             };
         };
     }
