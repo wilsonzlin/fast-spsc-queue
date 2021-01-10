@@ -1,5 +1,8 @@
 [package]
-name = "spsc-queue"
+name = "fast-spsc-queue"
+description = "Fast lockless single-producer single-consumer queue"
+license = "MIT"
+homepage = "https://github.com/wilsonzlin/fast-spsc-queue"
 version = "0.0.1"
 authors = ["Wilson Lin <code@wilsonl.in>"]
 edition = "2018"
