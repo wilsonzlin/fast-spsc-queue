@@ -1,5 +1,5 @@
 use std::thread;
-use spsc_queue::create_spsc_queue;
+use fast_spsc_queue::create_spsc_queue;
 
 fn main() {
     let (mut producer, mut consumer) = create_spsc_queue::<String>(2);

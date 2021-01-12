@@ -6,5 +6,6 @@ homepage = "https://github.com/wilsonzlin/fast-spsc-queue"
 version = "0.0.1"
 authors = ["Wilson Lin <code@wilsonl.in>"]
 edition = "2018"
+include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
 
 [dependencies]
